@@ -29,7 +29,7 @@ def save_book_info_to_json(author, title, genre, age, pages, year):
             file.seek(0)
             json.dump(books, file, ensure_ascii=False, indent=4)
     except FileNotFoundError:
-        # Если файл не существует, создаем новый с единственным элементом
+        # Если файл не существует, создается новый
         with open('books.json', 'w', encoding='utf-8') as file:
             json.dump([book_data], file, ensure_ascii=False, indent=4)
 
@@ -106,6 +106,29 @@ def open_book_info_window():
     confirm_button = tk.Button(book_window, text="Подтвердить", command=confirm_book_info)
     confirm_button.place(x=150, y=320)
 
+def load_unique_values(field):
+    # Добавление значений в выпадающий список
+    try:
+        with open('books.json', 'r', encoding='utf-8') as file:
+            books = json.load(file)
+
+        field_values = []
+
+        for book in books:
+            # Если указанное поле в текущей записи
+            if field in book:
+                # Добавляется значение поля в список
+                field_values.append(book[field])
+
+        # Удаляются дубликаты и сортировка значений
+        unique_sorted_values = sorted(set(field_values))
+
+        return unique_sorted_values
+
+    except FileNotFoundError:
+        # Если файл не найден, возвращается пустой список
+        return []
+
 
 def create_interface():
     # Главное окно приложения
@@ -128,6 +151,7 @@ def create_interface():
 
     author_combobox = ttk.Combobox(root, width=30)
     author_combobox.place(x=150, y=100)
+    author_combobox['values'] = load_unique_values('author')
 
     # Поле "По названию"
     title_label = tk.Label(root, text="По названию:")
@@ -135,6 +159,7 @@ def create_interface():
 
     title_combobox = ttk.Combobox(root, width=30)
     title_combobox.place(x=150, y=140)
+    title_combobox['values'] = load_unique_values('title')
 
     # Поле "По жанру"
     genre_label = tk.Label(root, text="По жанру:")
@@ -142,6 +167,7 @@ def create_interface():
 
     genre_combobox = ttk.Combobox(root, width=30)
     genre_combobox.place(x=150, y=180)
+    genre_combobox['values'] = load_unique_values('genre')
 
     # Поле "По возрастному ограничению"
     age_label = tk.Label(root, text="По возрастному ограничению:")
@@ -149,6 +175,7 @@ def create_interface():
 
     age_combobox = ttk.Combobox(root, width=30)
     age_combobox.place(x=220, y=220)
+    age_combobox['values'] = load_unique_values('age')
 
     # Поле "По количеству страниц"
     pages_label = tk.Label(root, text="По количеству страниц:")
@@ -182,13 +209,76 @@ def create_interface():
     year_to_entry = tk.Entry(root, width=10)
     year_to_entry.place(x=340, y=300)
 
+    def search():
+        # Сбор данных из полей поиска
+        author = author_combobox.get()
+        title = title_combobox.get()
+        genre = genre_combobox.get()
+        age = age_combobox.get()
+        pages_from = pages_from_entry.get()
+        pages_to = pages_to_entry.get()
+        year_from = year_from_entry.get()
+        year_to = year_to_entry.get()
+
+        try:
+            with open('books.json', 'r', encoding='utf-8') as file:
+                books = json.load(file)
+
+            # Фильтрация книг
+            filtered_books = []
+
+            for book in books:
+                # Проверяем параметры поочередно
+                if author and book.get('author') != author:
+                    continue
+                if title and book.get('title') != title:
+                    continue
+                if genre and book.get('genre') != genre:
+                    continue
+                if age and book.get('age') != age:
+                    continue
+                pages = book.get('pages')
+                if pages is not None:
+                    if pages_from and pages < int(pages_from):
+                        continue
+                    if pages_to and pages > int(pages_to):
+                        continue
+                year = book.get('year')
+                if year is not None:
+                    if year_from and year < int(year_from):
+                        continue
+                    if year_to and year > int(year_to):
+                        continue
+
+                # Если книга прошла все проверки, она добавляется в список
+                filtered_books.append(book)
+
+            # Очистка таблицы
+            tree.delete(*tree.get_children())
+
+            # Добавление результатов в таблицу
+            for book in filtered_books:
+                tree.insert("", "end", values=(book["author"], book["title"], book["genre"], book["age"], book["pages"], book["year"]))
+
+        except FileNotFoundError:
+            print("Файл books.json не найден.")
+
     # Кнопка "Поиск"
-    search_button = tk.Button(root, text="Поиск")
+    search_button = tk.Button(root, text="Поиск", command=search)
     search_button.place(x=260, y=340)
 
     # Поле вывода информации
-    output_text = ScrolledText(root, wrap="word", width=70, height=16)
-    output_text.place(x=20, y=380, width=560, height=280)
+    columns = ("author", "title", "genre", "age", "pages", "year")
+    tree = ttk.Treeview(root, columns=columns, show="headings", height=15)
+    tree.place(x=20, y=380, width=560, height=280)
+
+    # Настройка заголовков колонок
+    tree.heading("author", text="Автор")
+    tree.heading("title", text="Название")
+    tree.heading("genre", text="Жанр")
+    tree.heading("age", text="Ценз")
+    tree.heading("pages", text="Страницы")
+    tree.heading("year", text="Год")
 
     # Цикл окна
     root.mainloop()
