@@ -1,5 +1,4 @@
 from tkinter import ttk
-from tkinter.scrolledtext import ScrolledText
 import tkinter as tk
 import json
 
